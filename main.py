@@ -15,14 +15,14 @@ async def fetch_transactions(service, blocks_to_fetch: int) -> List[Dict]:
 def filter_transactions(transactions: List[Dict]) -> List[Dict]:
     return [
         {
-            'blockNumber': tx.get('blockNumber', ''),
-            'txHash': tx.get('txid', ''),
-            'from': tx.get('from', ''),
-            'to': tx.get('to', ''),
+            'hash': tx.get('txid', ''),
+            'block_hash': tx.get('blockHash', ''),
+            'block_number': tx.get('height', ''),
+            'from_address': tx.get('from', ''),
+            'to_address': tx.get('to', ''),
             'value': tx.get('amount', ''),
-            'transactionTime': tx.get('transactionTime', ''),
-            'state': tx.get('state', ''),
-            'txfee': tx.get('txfee', ''),
+            'gas': tx.get('txfee', ''),
+            'block_timestamp': tx.get('transactionTime', ''),
         }
         for tx in transactions
     ]
@@ -31,18 +31,17 @@ def filter_transactions(transactions: List[Dict]) -> List[Dict]:
 # Usage: await process_chain("eth", 100, logger)
 async def process_chain(chain: str, blocks_to_fetch: int, logger: logging.Logger):
     try:
-        # Get the appropriate service for the specified blockchain
         service = ServiceFactory.get_service(chain)
         
-        transactions = await fetch_transactions(service, blocks_to_fetch)
-        logger.info(f"Retrieved {len(transactions)} transactions for {chain}")
+        daily_transactions = await fetch_transactions(service, blocks_to_fetch)
+        logger.info(f"Retrieved {len(daily_transactions)} transactions for {chain}")
         
-        filtered_transactions = filter_transactions(transactions)
+        filtered_transactions = filter_transactions(daily_transactions)
         
         current_date = datetime.now().date()
         
         for tx in filtered_transactions:
-            block_number = tx['blockNumber']
+            block_number = tx['block_number']
             save_to_csv([tx], chain, current_date, block_number)
         
         logger.info(f"Saved {len(filtered_transactions)} transactions for {chain}")
@@ -69,23 +68,11 @@ async def process_chain_by_date_range(chain: str, start_date: datetime, end_date
         
         # Process and save transactions for each date
         for date, daily_transactions in transactions_by_date.items():
-            filtered_transactions = [
-                {
-                    'blockNumber': tx.get('height', ''),
-                    'txHash': tx.get('txid', ''),
-                    'from': tx.get('from', ''),
-                    'to': tx.get('to', ''),
-                    'value': tx.get('amount', ''),
-                    'transactionTime': tx.get('transactionTime', ''),
-                    'state': tx.get('state', ''),
-                    'txfee': tx.get('txfee', ''),
-                }
-                for tx in daily_transactions
-            ]
+            filtered_transactions = filter_transactions(daily_transactions)
             
             # Save each transaction to a CSV file
             for tx in filtered_transactions:
-                block_number = tx['blockNumber']
+                block_number = tx['block_number']
                 save_to_csv([tx], chain, date, block_number)
             
             logger.info(f"Saved {len(filtered_transactions)} transactions for {chain} on {date}")
