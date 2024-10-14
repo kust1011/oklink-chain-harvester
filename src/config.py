@@ -6,7 +6,7 @@ load_dotenv()
 
 def get_api_keys(prefix: str) -> List[str]:
     keys = []
-    i = 1
+    i = 0
     while True:
         key = os.getenv(f"{prefix}_{i}")
         if key:
@@ -18,6 +18,6 @@ def get_api_keys(prefix: str) -> List[str]:
 
 OKLINK_KEY_MAPPING = {
     "btc": get_api_keys("OKLINK_BTC_KEY"),
-    "tron": get_api_keys("OKLINK_TRON_KEY"),
+    "trx": get_api_keys("OKLINK_TRX_KEY"),
     "eth": get_api_keys("OKLINK_ETH_KEY")
 }

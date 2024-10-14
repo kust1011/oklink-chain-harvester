@@ -22,5 +22,8 @@ env/
 Thumbs.db
 
 # Data files
-data/**/csv/*.csv
-data/**/json/*.json
+data/**/csv/
+data/**/json/
+
+# Temporary files
+tmp/

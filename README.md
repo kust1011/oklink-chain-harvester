@@ -5,7 +5,7 @@
 ## 功能
 
 - 擷取最新的區塊交易數據
-- 支持多個區塊鏈（ETH、BTC、TRON）
+- 支持多個區塊鏈（ETH、BTC、TRX）
 - 將數據保存為 CSV 和 JSON 格式
 - 異步處理提高效率
 - 靈活的錯誤處理和日誌記錄
@@ -41,7 +41,7 @@
 python main.py
 ```
 
-這將擷取最新的區塊交易數據並保存到 `data/{chain}/csv/` 和 `data/{chain}/json/` 目錄中，其中 `{chain}` 是區塊鏈的名稱（如 eth、btc、tron）。每個交易將被保存為單獨的文件，文件名包含區塊鏈名稱、日期和區塊號碼。
+這將擷取最新的區塊交易數據並保存到 `data/{chain}/csv/` 和 `data/{chain}/json/` 目錄中，其中 `{chain}` 是區塊鏈的名稱（如 eth、btc、trx）。每個交易將被保存為單獨的文件，文件名包含區塊鏈名稱、日期和區塊號碼。
 
 
 ### 清理數據
@@ -70,7 +70,7 @@ oklink_project/
 │   │   ├── base_service.py
 │   │   ├── eth_service.py
 │   │   ├── btc_service.py
-│   │   └── tron_service.py
+│   │   └── trx_service.py
 │   ├── utils/
 │   │   ├── utils.py
 │   │   └── rate_limiter.py
@@ -82,8 +82,9 @@ oklink_project/
 │   └── test_utils.py
 │
 ├── data/
-│   ├── csv/
-│   └── json/
+│   ├── btc/
+│   ├── eth/
+│   └── trx/
 │
 ├── .env
 ├── .env.example

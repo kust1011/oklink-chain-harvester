@@ -1,3 +1,4 @@
+import ssl
 import httpx
 import logging
 import asyncio
@@ -12,13 +13,16 @@ import time
 class BaseService:
     def __init__(self, api_keys: List[str], logger: logging.Logger):
         self._logger = logger
-        self._MAX_TRIES = 5
+        self._MAX_TRIES = 7
+        self._ALERT_THRESHOLD = 5
         self._RETRY_DELAY = 3
         self._rate_limiter = MultiKeyRateLimiter(api_keys, 5)  # 5 requests per second per key
 
     async def _make_request(self, url: str, params: Dict):
         for attempt in range(self._MAX_TRIES):
             try:
+                if attempt >= self._ALERT_THRESHOLD:
+                    self._logger.error(f"Attempt {attempt + 1} of {self._MAX_TRIES} for {url}")
                 self._logger.debug(f"Attempting to acquire API key, attempt {attempt + 1}")
                 api_key = await self._rate_limiter.acquire()
                 self._logger.debug(f"Acquired API key: {api_key[:5]}...")
@@ -29,16 +33,19 @@ class BaseService:
                     response.raise_for_status()
                     self._logger.debug("Request successful")
                     return response.json()
-            except httpx.HTTPStatusError as e:
-                self._logger.warning(f"HTTP error occurred: {e}. Attempt {attempt + 1} of {self._MAX_TRIES}")
+            except (httpx.HTTPStatusError, ssl.SSLError, httpx.ReadTimeout) as e:
+                self._logger.warning(f"Error occurred: {e}. Attempt {attempt + 1} of {self._MAX_TRIES}")
                 if attempt == self._MAX_TRIES - 1:
                     raise
             except Exception as e:
-                self._logger.error(f"An error occurred: {e}")
-                raise
+                self._logger.error(f"Unexpected error occurred: {e}")
+                if attempt == self._MAX_TRIES - 1:
+                    raise
             
             self._logger.debug(f"Retrying in {self._RETRY_DELAY} seconds")
             await asyncio.sleep(self._RETRY_DELAY)
+    
+        raise Exception(f"Failed to make request after {self._MAX_TRIES} attempts")
 
     async def get_latest_block_number(self) -> int:
         url = "https://www.oklink.com/api/v5/explorer/block/block-height-by-time"
@@ -52,7 +59,7 @@ class BaseService:
         data = await self._make_request(url, params)
         return int(data["data"][0]["height"])
 
-    async def get_transactions_for_single_block(self, block_number: int, date: datetime) -> List[Dict]:
+    async def get_transactions_for_single_block(self, block_number: int, date: datetime = datetime.now().date()) -> List[Dict]:
         url = "https://www.oklink.com/api/v5/explorer/block/transaction-list"
         params = {
             "chainShortName": self.CHAIN_NAME,
@@ -68,7 +75,7 @@ class BaseService:
         while True:
             data = await self._make_request(url, params)
             
-            save_to_json(data, self.CHAIN_NAME, date, block_number, page)
+            # save_to_json(data, self.CHAIN_NAME, date, block_number, page)
 
             if "data" in data and data["data"]:
                 block_data = data["data"][0]
@@ -99,26 +106,6 @@ class BaseService:
             all_transactions.extend(transactions)
 
         return all_transactions
-
-    async def get_transactions_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict]:
-        self._logger.info(f"Fetching transactions from {start_date.date()} to {end_date.date()}")
-        all_transactions = []
-
-        while start_date <= end_date:
-            next_date = min(start_date + timedelta(days=1), end_date)
-            start_block = await self.get_block_height_by_time(start_date)
-            end_block = await self.get_block_height_by_time(next_date)
-            
-            self._logger.info(f"Fetching blocks from {start_block} to {end_block} for {start_date.date()}")
-            
-            for block_number in range(start_block, end_block + 1):
-                transactions = await self.get_transactions_for_single_block(block_number, start_date)
-                all_transactions.extend(transactions)
-                self._logger.info(f"Fetched {len(transactions)} transactions for block {block_number}")
-            
-            start_date = next_date + timedelta(microseconds=1)
-
-        return all_transactions
     
     async def get_block_height_by_time(self, target_time: datetime, closest: str = "before") -> int:
         url = "https://www.oklink.com/api/v5/explorer/block/block-height-by-time"
@@ -129,9 +116,15 @@ class BaseService:
         }
         response = await self._make_request(url, params)
         return int(response["data"][0]["height"])
-
-    def _save_json(self, data: Dict, filename: str):
-        json_dir = Path("data/json")
-        json_dir.mkdir(parents=True, exist_ok=True)
-        with open(json_dir / f"{filename}.json", "w") as f:
-            json.dump(data, f, indent=2)
+    
+    async def get_block_time(self, block_number: int) -> datetime:
+        url = "https://www.oklink.com/api/v5/explorer/block/block-fills"
+        params = {
+            "chainShortName": self.CHAIN_NAME,
+            "height": block_number
+        }
+        response = await self._make_request(url, params)
+        block_time_str = response["data"][0]["blockTime"]
+        block_time_ms = int(block_time_str)
+        
+        return datetime.fromtimestamp(block_time_ms / 1000)

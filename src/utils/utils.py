@@ -7,9 +7,12 @@ from pathlib import Path
 from datetime import datetime
 
 def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    log_file = os.path.join(Path("logs"), f"oklink_data_fetcher_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
     logger = logging.getLogger(name)
     logger.setLevel(level)
+
+    log_dir = Path('logs')
+    log_dir.mkdir(exist_ok=True)
+    log_file = os.path.join(Path("logs"), f"oklink_data_fetcher_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
     
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
@@ -30,10 +33,13 @@ def save_to_csv(data: List[Dict], chain: str, date: datetime, block_number: int)
     if not data:
         return
 
-    date_str = date.strftime("%Y_%m_%d")
-    csv_dir = os.path.join(Path("data"), chain, date_str, "csv")
+    # path: chain\year\month\day\block_number
+    year = date.strftime("%Y")
+    month = date.strftime("%m")
+    day = date.strftime("%d")
+    csv_dir = os.path.join(Path("data"), chain, "csv", year, month, day, str(block_number))
 
-    file_path = os.path.join(csv_dir, f"block_{block_number}.csv")
+    file_path = os.path.join(csv_dir, "transactions.csv")
     os.makedirs(csv_dir, exist_ok=True)
     
     file_exists = os.path.exists(file_path)
@@ -47,7 +53,7 @@ def save_to_csv(data: List[Dict], chain: str, date: datetime, block_number: int)
 
 def save_to_json(data: Dict, chain: str, date: datetime, block_number: int, page: int):
     date_str = date.strftime("%Y_%m_%d")
-    json_dir = os.path.join(Path("data"), chain, date_str, "json")
+    json_dir = os.path.join(Path("data"), chain, "json", date_str)
     os.makedirs(json_dir, exist_ok=True)
     file_path = os.path.join(json_dir, f"block_{block_number}_page_{page}.json")
 
